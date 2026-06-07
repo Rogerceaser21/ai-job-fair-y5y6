@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The A.I. Job Fair — Year 5+6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   THEME — "OVERWORLD DAY" (Minecraft)  ·  Year 3+4
+   Edit these variables to retune the whole deck.
+   ============================================================ */
+:root{
+  /* sky / ground palette */
+  --sky-top:#79c5f0; --sky-bot:#cfeeff;
+  --grass:#5fae3a; --grass-dark:#46892a; --grass-light:#73c64b;
+  --dirt:#8a5a32; --dirt-dark:#6f4526;
+  /* surfaces + ink */
+  --ink:#23311a; --ink-soft:#3f5230; --paper:#fffdf3; --paper-edge:#d9caa0;
+  /* accent ores */
+  --gold:#f0b429; --redstone:#d8392f; --diamond:#28b9b3; --emerald:#33ab5f; --lapis:#3568c8; --amethyst:#9b59b6;
+  /* fonts */
+  --font-display:'Press Start 2P', cursive;
+  --font-body:'VT323', monospace;
+  /* type scale (clamp + live font-scale multiplier) */
+  --font-scale:1;
+  --title-size: calc(clamp(1.7rem, 5vw, 3.3rem) * var(--font-scale));
+  --h2-size:    calc(clamp(1.25rem, 3.2vw, 2.1rem) * var(--font-scale));
+  --h3-size:    calc(clamp(1.4rem, 2.4vw, 2rem) * var(--font-scale));
+  --body-size:  calc(clamp(1.15rem, 1.9vw, 1.6rem) * var(--font-scale));
+  --label-size: calc(clamp(0.5rem, 0.95vw, 0.72rem) * var(--font-scale));
+  /* spacing */
+  --slide-pad: clamp(1.1rem, 3.5vw, 3.2rem);
+  --gap: clamp(0.6rem, 1.6vh, 1.3rem);
+  --gap-sm: clamp(0.35rem, 0.9vh, 0.7rem);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* reusable pixel bevel */
+  --bevel: inset -5px -5px 0 rgba(0,0,0,0.22), inset 5px 5px 0 rgba(255,255,255,0.30);
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{ height:100%; overflow:hidden; }
+body{
+  font-family:var(--font-body);
+  background:var(--sky-bot);
+  color:var(--ink);
+  -webkit-font-smoothing:none;
+}
+
+/* ============================================================
+   SLIDE FRAMEWORK (transitions identical to house style)
+   ============================================================ */
+.slides-container{ position:relative; width:100vw; height:100vh; overflow:hidden; }
+.slide{
+  position:absolute; inset:0; width:100vw; height:100vh; overflow:hidden;
+  display:flex; flex-direction:column;
+  opacity:0; transform:translateX(60px);
+  transition:opacity .45s var(--ease-expo), transform .45s var(--ease-expo);
+  pointer-events:none; will-change:opacity, transform;
+  background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bot) 78%);
+}
+.slide.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+.slide.exit-left{ opacity:0; transform:translateX(-60px); }
+
+/* faint block-grid texture + grass footer on every slide */
+.slide::before{
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70,137,42,.10) 1px, transparent 1px);
+  background-size:46px 46px; opacity:.5;
+  mask:radial-gradient(130% 100% at 50% 30%, #000 55%, transparent 100%);
+}
+.slide::after{
+  content:''; position:absolute; left:0; right:0; bottom:0; height:14px; z-index:0; pointer-events:none;
+  background:var(--dirt); border-top:6px solid var(--grass);
+  box-shadow:inset 0 6px 0 var(--grass-dark);
+}
+.slide > *{ position:relative; z-index:1; }
+
+.slide-inner{
+  padding:var(--slide-pad); height:100%;
+  display:flex; flex-direction:column; justify-content:center;
+  gap:var(--gap); max-height:100vh; overflow:hidden;
+}
+
+/* ============================================================
+   REVEAL ANIMATIONS
+   ============================================================ */
+.reveal{ opacity:0; transform:translateY(22px); transition:opacity .55s var(--ease-expo), transform .55s var(--ease-expo); }
+.reveal-scale{ opacity:0; transform:scale(.92); transition:opacity .55s var(--ease-expo), transform .55s var(--ease-expo); }
+.slide.active .reveal, .slide.active .reveal-scale{ opacity:1; transform:none; }
+.slide.active .d1{ transition-delay:.05s } .slide.active .d2{ transition-delay:.15s }
+.slide.active .d3{ transition-delay:.25s } .slide.active .d4{ transition-delay:.35s }
+.slide.active .d5{ transition-delay:.45s } .slide.active .d6{ transition-delay:.55s }
+.slide.active .d7{ transition-delay:.65s }
+
+/* fragment reveal (click NEXT to show) */
+[data-fragment]{ opacity:0; transform:translateY(15px); transition:opacity .4s var(--ease-expo), transform .4s var(--ease-expo); pointer-events:none; }
+[data-fragment].fragment-visible{ opacity:1; transform:translateY(0); pointer-events:auto; }
+
+/* ============================================================
+   SHARED MINECRAFT COMPONENTS
+   ============================================================ */
+.eyebrow{
+  font-family:var(--font-display); font-size:var(--label-size);
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink);
+  background:var(--gold); padding:.5em .8em; width:fit-content;
+  box-shadow:var(--bevel);
+}
+.slide-title{
+  font-family:var(--font-display); font-size:var(--h2-size); line-height:1.35;
+  color:var(--ink); text-shadow:3px 3px 0 var(--paper-edge);
+}
+.slide-title .hl{ color:var(--emerald); }
+.slide-title .hl2{ color:var(--redstone); }
+.body-text{ font-size:var(--body-size); color:var(--ink-soft); line-height:1.35; }
+
+/* pixel panel (parchment) */
+.mc-panel{
+  background:var(--paper); border:5px solid var(--paper-edge);
+  box-shadow:0 0 0 5px var(--dirt-dark), var(--bevel), 0 12px 30px rgba(0,0,0,.28);
+  padding:clamp(.9rem,2vw,1.6rem) clamp(1rem,2.4vw,2rem);
+}
+
+/* bullet list with block markers */
+.bullet-list{ list-style:none; display:flex; flex-direction:column; gap:var(--gap-sm); }
+.bullet-list li{
+  font-size:var(--body-size); color:var(--ink); line-height:1.3;
+  padding-left:1.7em; position:relative;
+}
+.bullet-list li::before{
+  content:''; position:absolute; left:0; top:.18em;
+  width:.95em; height:.95em; background:var(--grass);
+  box-shadow:inset -3px -3px 0 rgba(0,0,0,.28), inset 3px 3px 0 rgba(255,255,255,.35);
+}
+.bullet-list li.b-gold::before{ background:var(--gold); }
+.bullet-list li.b-red::before{ background:var(--redstone); }
+.bullet-list li.b-diamond::before{ background:var(--diamond); }
+.bullet-list li.b-lapis::before{ background:var(--lapis); }
+.bullet-list li.b-amethyst::before{ background:var(--amethyst); }
+
+/* AC9 cognitive verb highlight (bold + italic, like the LP) */
+.verb{ font-style:italic; font-weight:bold; color:var(--lapis); }
+
+/* pedagogy badge */
+.ped-badge{
+  display:inline-flex; align-items:center; gap:.5em; width:fit-content;
+  font-family:var(--font-display); font-size:var(--label-size);
+  letter-spacing:.14em; text-transform:uppercase; color:#fff;
+  padding:.55em .9em; box-shadow:var(--bevel);
+}
+.ped-badge.i-do{ background:var(--diamond); } .ped-badge.we-do{ background:var(--amethyst); }
+.ped-badge.you-do{ background:var(--redstone); }
+
+/* star success rows */
+.star-row{ display:flex; gap:.6em; align-items:baseline; font-size:var(--body-size); line-height:1.3; }
+.star-row .stars{ flex-shrink:0; letter-spacing:.05em; }
+.s1c{ color:var(--emerald); } .s2c{ color:var(--gold); } .s3c{ color:var(--redstone); }
+
+/* images */
+.slide-img{
+  width:100%; max-height:min(46vh,380px); object-fit:contain;
+  background:#0d0d12; border:5px solid var(--ink);
+  box-shadow:var(--bevel), 0 10px 26px rgba(0,0,0,.35);
+}
+.two-col{ display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(1rem,2.4vw,2.2rem); align-items:center; }
+
+/* numbered step chips */
+.steps{ display:flex; flex-direction:column; gap:var(--gap-sm); }
+.step{ display:flex; gap:.8em; align-items:flex-start; font-size:var(--body-size); line-height:1.3; }
+.step .num{
+  flex-shrink:0; width:1.7em; height:1.7em; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:.62em; color:#fff; background:var(--grass);
+  box-shadow:var(--bevel);
+}
+
+/* station cards grid */
+.station-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:clamp(.5rem,1.2vw,1rem); }
+.station-card{
+  background:var(--paper); border:4px solid var(--paper-edge);
+  box-shadow:var(--bevel); padding:.5rem; display:flex; flex-direction:column; gap:.4rem; text-align:center;
+}
+.station-card img{ width:100%; aspect-ratio:1; object-fit:cover; border:3px solid var(--ink); display:block; }
+.station-card .sc-label{ font-family:var(--font-display); font-size:calc(var(--label-size)*1.02); color:var(--ink); line-height:1.4; }
+
+/* big task line */
+.task-big{ font-family:var(--font-display); font-size:clamp(1rem,2.5vw,1.8rem); line-height:1.6; color:var(--ink); }
+.task-big .chip{ color:var(--redstone); }
+
+/* teacher-only callout (styled like an in-game sign) */
+.callout{
+  font-size:calc(var(--body-size)*.92); line-height:1.3; color:#23311a;
+  background:#ffe9a8; border:4px solid #b9892f; box-shadow:var(--bevel);
+  padding:.6em .9em; display:flex; gap:.55em; align-items:flex-start;
+}
+.callout .tch{ flex-shrink:0; }
+body.hide-teacher [data-teacher-only="true"]{ display:none !important; }
+
+/* generic pill */
+.pill{
+  font-family:var(--font-display); font-size:var(--label-size); color:var(--ink);
+  background:var(--paper); padding:.55em .8em; box-shadow:var(--bevel); letter-spacing:.06em;
+}
+
+/* ============================================================
+   TITLE SLIDE EXTRAS
+   ============================================================ */
+.t-sun{ position:absolute; top:8vh; right:10vw; width:clamp(46px,6vw,82px); aspect-ratio:1; z-index:0;
+  background:var(--gold); box-shadow:0 0 0 6px #ffe27a, 0 0 46px 16px rgba(240,180,41,.55), inset -6px -6px 0 rgba(0,0,0,.12);
+  animation:sun 4s ease-in-out infinite; }
+@keyframes sun{ 50%{ transform:scale(1.06); filter:brightness(1.12);} }
+.cloud{ position:absolute; background:#fff; opacity:.92; z-index:0;
+  box-shadow:20px 0 0 #fff,40px 0 0 #fff,20px -18px 0 #fff,60px 0 0 #fff; width:18px; height:18px; animation:drift linear infinite; }
+.cloud.c1{ top:17vh; left:-12vw; animation-duration:30s } .cloud.c2{ top:31vh; left:-25vw; transform:scale(1.5); animation-duration:42s }
+.cloud.c3{ top:11vh; left:-40vw; transform:scale(.8); animation-duration:34s }
+@keyframes drift{ to{ left:120vw } }
+.t-blocks{ display:flex; gap:clamp(8px,1.6vw,18px); margin-top:var(--gap); }
+.t-blocks .blk{ width:clamp(30px,4.4vw,50px); aspect-ratio:1; box-shadow:var(--bevel); animation:bob 2.4s ease-in-out infinite; }
+.t-blocks .blk:nth-child(2){ animation-delay:.3s } .t-blocks .blk:nth-child(3){ animation-delay:.6s } .t-blocks .blk:nth-child(4){ animation-delay:.9s }
+@keyframes bob{ 50%{ transform:translateY(-12px) } }
+.t-title{ font-family:var(--font-display); font-size:var(--title-size); line-height:1.34; color:#fff;
+  text-shadow:5px 5px 0 var(--ink); }
+.t-title .gold{ color:var(--gold); }
+.t-meta{ display:flex; gap:.6em; flex-wrap:wrap; margin-top:var(--gap-sm); }
+
+/* ============================================================
+   CONTROLS: progress / dots / counter
+   ============================================================ */
+.progress-bar-wrap{ position:fixed; top:0; left:0; right:0; height:6px; background:rgba(255,255,255,.35); z-index:1000; }
+.progress-bar-fill{ height:100%; background:var(--grass); box-shadow:inset 0 -3px 0 var(--grass-dark); width:0%; transition:width .4s var(--ease-expo); }
+.nav-dots{ position:fixed; right:clamp(.7rem,2vw,1.4rem); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:clamp(.35rem,.8vh,.6rem); z-index:1000; }
+.nav-dots button{ width:11px; height:11px; border:2px solid var(--ink); background:rgba(255,255,255,.6); cursor:pointer; padding:0; box-shadow:inset -2px -2px 0 rgba(0,0,0,.2); }
+.nav-dots button.active{ background:var(--grass); }
+.slide-counter{ position:fixed; bottom:clamp(.7rem,2vh,1.3rem); right:clamp(1rem,2.5vw,2rem); font-family:var(--font-display); font-size:var(--label-size); color:var(--ink); background:rgba(255,255,255,.7); padding:.4em .6em; box-shadow:var(--bevel); z-index:1000; }
+
+/* font scale + fullscreen + teacher pill */
+.font-scale-ctrl{ position:fixed; bottom:clamp(.7rem,2vh,1.3rem); left:clamp(1rem,2.5vw,2rem); display:flex; align-items:center; gap:2px; z-index:1000;
+  background:rgba(255,253,243,.94); border:3px solid var(--paper-edge); box-shadow:var(--bevel); padding:.3em .45em; }
+.font-scale-ctrl button{ background:none; border:none; color:var(--ink); font-family:var(--font-display); font-size:clamp(.5rem,.8vw,.66rem); cursor:pointer; padding:.3em .45em; line-height:1; }
+.font-scale-ctrl button:hover{ background:var(--grass-light); }
+.font-scale-ctrl button:active{ transform:scale(.92); }
+.font-scale-ctrl button:disabled{ opacity:.25; cursor:default; }
+#fontScaleLabel{ font-family:var(--font-display); font-size:clamp(.46rem,.72vw,.6rem); color:var(--ink-soft); min-width:3em; text-align:center; }
+.font-scale-ctrl .ctrl-divider{ width:2px; height:1.1em; background:var(--paper-edge); margin:0 4px; }
+.font-scale-ctrl .fs-btn{ font-size:clamp(.7rem,1vw,.85rem); padding:.18em .4em; }
+.teacher-btn.off{ opacity:.4; text-decoration:line-through; }
+
+/* cursor fx */
+#cursorFx{ position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:9999; }
+
+/* ============================================================
+   SPEAKER NOTES
+   ============================================================ */
+.speaker-notes-panel{ position:fixed; bottom:clamp(.8rem,2vh,1.5rem); left:50%; transform:translateX(-50%) translateY(160%);
+  width:min(900px,92vw); max-height:40vh; z-index:9000; background:rgba(26,33,18,.97); color:#fff;
+  padding:clamp(.8rem,1.5vw,1.2rem) clamp(1rem,2vw,1.5rem); border:4px solid var(--grass); box-shadow:0 -10px 40px rgba(0,0,0,.45);
+  font-size:calc(clamp(.95rem,1.5vw,1.25rem)*var(--font-scale)); line-height:1.5; overflow-y:auto; transition:transform .35s var(--ease-expo); }
+.speaker-notes-panel.visible{ transform:translateX(-50%) translateY(0); }
+.notes-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:.5em; padding-bottom:.4em; border-bottom:2px solid rgba(115,198,75,.4); }
+.notes-label{ font-family:var(--font-display); font-size:.6em; letter-spacing:.12em; text-transform:uppercase; color:var(--grass-light); }
+.notes-counter{ font-family:var(--font-display); font-size:.55em; opacity:.65; }
+.notes-body strong{ color:var(--gold); } .notes-body em{ color:var(--diamond); font-style:italic; }
+.notes-body .tag{ display:inline-block; background:var(--lapis); color:#fff; padding:.1em .5em; font-size:.85em; font-weight:bold; letter-spacing:.06em; margin-right:.35em; }
+.notes-body .tag.cfu{ background:var(--redstone); } .notes-body .tag.tt{ background:var(--amethyst); }
+.notes-hint{ position:fixed; bottom:clamp(.8rem,2vh,1.5rem); left:50%; transform:translateX(-50%); font-family:var(--font-display);
+  font-size:var(--label-size); letter-spacing:.1em; text-transform:uppercase; z-index:199; background:rgba(255,253,243,.9); color:var(--ink);
+  padding:.45em .8em; box-shadow:var(--bevel); pointer-events:none; opacity:.8; }
+
+/* ============================================================
+   INLINE EDITING
+   ============================================================ */
+.edit-hotzone{ position:fixed; top:0; left:0; width:80px; height:80px; z-index:10000; cursor:pointer; }
+.edit-toggle{ position:fixed; top:clamp(.6rem,1.5vh,1rem); left:clamp(.6rem,1.5vw,1rem); z-index:10001;
+  background:var(--paper); border:3px solid var(--paper-edge); box-shadow:var(--bevel); font-size:1.1rem; padding:.25em .45em; cursor:pointer;
+  opacity:0; pointer-events:none; transition:opacity .3s ease; }
+.edit-toggle.show, .edit-toggle.active{ opacity:1; pointer-events:auto; }
+.edit-toggle.active{ background:var(--gold); }
+.edit-banner{ position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:10001;
+  background:var(--redstone); color:#fff; font-family:var(--font-display); font-size:.6rem; letter-spacing:.1em;
+  padding:.5em 1em; box-shadow:0 4px 0 rgba(0,0,0,.25); display:none; }
+.edit-banner.active{ display:block; }
+body.edit-active [contenteditable="true"]{ outline:2px dashed var(--lapis); outline-offset:3px; cursor:text; border-radius:2px; }
+body.edit-active [contenteditable="true"]:hover{ background:rgba(53,104,200,.08); }
+
+/* ============================================================
+   RESPONSIVE — viewport fitting
+   ============================================================ */
+@media (max-height:700px){ :root{ --slide-pad:clamp(.9rem,3vw,2.2rem); --gap:clamp(.45rem,1vh,.9rem); --h2-size:calc(clamp(1.1rem,3vw,1.8rem)*var(--font-scale)); --title-size:calc(clamp(1.4rem,5vw,2.6rem)*var(--font-scale)); } }
+@media (max-height:600px){ :root{ --slide-pad:clamp(.6rem,2.4vw,1.6rem); --gap:clamp(.3rem,.7vh,.6rem); --body-size:calc(clamp(.95rem,1.4vw,1.2rem)*var(--font-scale)); --title-size:calc(clamp(1.2rem,4.5vw,2rem)*var(--font-scale)); } .nav-dots{ display:none } }
+@media (max-height:500px){ :root{ --slide-pad:clamp(.5rem,2vw,1.1rem); --title-size:calc(clamp(1.05rem,4vw,1.6rem)*var(--font-scale)); } }
+/* responsive image hiding */
+@media (max-width:900px){ .two-col{ grid-template-columns:1fr } .two-col .slide-img{ display:none } .station-grid{ grid-template-columns:repeat(3,1fr) } }
+@media (max-height:620px){ .slide-img{ display:none } }
+body.scaled-up .two-col .slide-img, body.scaled-up .station-grid{ }
+@media (prefers-reduced-motion:reduce){ .slide,.reveal,.reveal-scale,.cloud,.t-sun,.t-blocks .blk{ transition-duration:.01ms !important; animation-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+
+<!-- progress / nav / counter -->
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+<div class="slide-counter" id="slideCounter">1 / 16</div>
+
+<!-- speaker notes -->
+<aside class="speaker-notes-panel" id="speakerNotes" aria-label="Speaker notes (press N or triple-tap NEXT)">
+  <div class="notes-header"><span class="notes-label">⛏ Speaker Notes</span><span class="notes-counter" id="notesCounter">Slide 1 / 16</span></div>
+  <div class="notes-body" id="notesBody">(no notes for this slide)</div>
+</aside>
+<div class="notes-hint" id="notesHint">Press N or triple-tap → for speaker notes</div>
+
+<!-- cursor fx -->
+<canvas id="cursorFx" aria-hidden="true"></canvas>
+
+<!-- inline edit -->
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Edit mode (E)">✏️</button>
+<div class="edit-banner" id="editBanner">EDIT MODE · click text to change · ⌘S to save a copy</div>
+
+<!-- controls pill -->
+<div class="font-scale-ctrl" id="fontScaleCtrl" aria-label="Controls">
+  <button id="fontScaleDown" aria-label="Decrease font size" title="Smaller (⌘ ,)">A−</button>
+  <span id="fontScaleLabel">100%</span>
+  <button id="fontScaleUp" aria-label="Increase font size" title="Larger (⌘ .)">A+</button>
+  <span class="ctrl-divider" aria-hidden="true"></span>
+  <button id="fullscreenBtn" class="fs-btn" aria-label="Enter fullscreen" title="Fullscreen (⌘ F)">⛶</button>
+  <span class="ctrl-divider" aria-hidden="true"></span>
+  <button id="teacherBtn" class="fs-btn teacher-btn" aria-label="Toggle teacher prompts" title="Teacher prompts (⌘⇧H)">🎓</button>
+</div>
+
+<div class="slides-container" id="slidesContainer">
+
+  <!-- ===== SLIDE 1 — TITLE ===== -->
+  <section class="slide active" data-slide="1" aria-label="Title"
+    data-notes="<strong>Opener (30 sec).</strong> Today our classroom IS a city, and the whole city runs with a little help from A.I. We are going INTO Minecraft to explore it. <span class='tag tt'>Building Ratio</span> Energiser: 'Hands up if you have played Minecraft before.' Then: 'Today we play it to become A.I. detectives.'">
+    <div class="t-sun"></div>
+    <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    <div class="slide-inner" style="align-items:flex-start;">
+      <span class="eyebrow reveal d1">Minecraft Education · Cycle 8</span>
+      <h1 class="t-title reveal d2">THE <span class="gold">A.I.</span><br>JOB FAIR</h1>
+      <p class="body-text reveal d3" style="font-size:var(--h3-size); color:var(--ink);">Explore the city. Discover how A.I. helps people do their jobs.</p>
+      <div class="t-meta reveal d4">
+        <span class="pill">Year 5 + 6</span><span class="pill">30 Minutes</span><span class="pill">Teleport · Explore · Snap · Write</span>
+      </div>
+      <div class="t-blocks reveal d5">
+        <div class="blk" style="background:var(--grass)"></div>
+        <div class="blk" style="background:var(--diamond)"></div>
+        <div class="blk" style="background:var(--redstone)"></div>
+        <div class="blk" style="background:var(--gold)"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 2 — WALT ===== -->
+  <section class="slide" data-slide="2" aria-label="WALT"
+    data-notes="<strong>WALT (1 min).</strong> Read each one aloud. The <em>bold italic blue</em> words are our thinking words. <span class='tag cfu'>CFU</span> Cold call: 'What does it mean to <em>identify</em> something?' (to spot it and say what it is).">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">WALT · We Are Learning To</span>
+      <ul class="bullet-list reveal d2" style="margin-top:var(--gap-sm);">
+        <li><span class="verb">Identify</span> and <span class="verb">examine</span> how A.I. is used across different jobs and places in our city.</li>
+        <li class="b-gold"><span class="verb">Describe</span> and <span class="verb">explain</span> what each A.I. system or Bot is responsible for and why it is useful.</li>
+        <li class="b-red"><span class="verb">Create</span> a short written reflection on how A.I. helps people do their jobs better.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 3 — SUCCESS CRITERIA ===== -->
+  <section class="slide" data-slide="3" aria-label="Success criteria"
+    data-notes="<strong>Success Criteria (1 min).</strong> Three levels — everyone aims for at least ★★. <span class='tag cfu'>CFU</span> 'Point to the star level you think you can reach today.'">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">Success Criteria · How will I know I've got it?</span>
+      <div class="star-row reveal d2"><span class="stars s1c">★</span><span><strong>Getting started:</strong> I can <span class="verb">use</span> the Teleport Bot to visit a station, read the board, and talk to the expert.</span></div>
+      <div class="star-row reveal d3"><span class="stars s2c">★★</span><span><strong>Levelling up:</strong> I can photograph and <span class="verb">name</span> all <strong>5 stations</strong> clearly by what each A.I. does.</span></div>
+      <div class="star-row reveal d4"><span class="stars s3c">★★★</span><span><strong>Going further:</strong> I can <span class="verb">create</span> a 1 to 2 paragraph quill entry that <span class="verb">explains</span> how the world uses A.I. to help people do their jobs better, using examples from 3+ stations.</span></div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 4 — THE MISSION (AIDEN) ===== -->
+  <section class="slide" data-slide="4" aria-label="The mission"
+    data-notes="<strong>Hook (2 min).</strong> Meet Aiden. He sends us to a Teleport Bot, off to the City to meet Isabel. <span class='tag cfu'>CFU</span> Cold call: 'Where do YOU think you might find A.I. helping in a real city? Name one place.' Wait 5–7 sec, take 2–3 voices.">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">The Mission</span>
+      <div class="two-col">
+        <div class="reveal d2">
+          <h2 class="slide-title">Aiden has a job <span class="hl">for you</span>.</h2>
+          <p class="body-text" style="margin-top:var(--gap-sm);">A job fair is opening in the city. Before it opens, Aiden wants YOU to explore and discover how A.I. helps everyone who works there.</p>
+          <div class="callout" data-teacher-only="true" style="margin-top:var(--gap);"><span class="tch">🎓</span><span><strong>CFU — ask now:</strong> "Where might you find A.I. helping in a real city? Name one place." Wait 5–7 seconds, take 2–3 answers.</span></div>
+        </div>
+        <img class="slide-img reveal d3" src="assets/01-aiden-intro.png" alt="Aiden tells you to head to the Teleport Bot to find Isabel in the City">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 5 — MEET ISABEL ===== -->
+  <section class="slide" data-slide="5" aria-label="Meet Isabel"
+    data-notes="<strong>Story (1 min).</strong> Isabel is the host. She names the four experts to visit. Read the names + places aloud so students know their checklist.">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">Meet Isabel · Your Guide</span>
+      <div class="two-col">
+        <img class="slide-img reveal d2" src="assets/04-isabel-instructions.png" alt="Isabel says to visit Sofia, Raj, Santiago and Mei">
+        <div class="reveal d3">
+          <h2 class="slide-title">Go meet the <span class="hl">experts</span>.</h2>
+          <ul class="bullet-list" style="margin-top:var(--gap-sm);">
+            <li><strong>Sofia</strong> at the Gardens</li>
+            <li class="b-red"><strong>Raj</strong> at the Hospital</li>
+            <li class="b-lapis"><strong>Santiago</strong> at the Transport Hub</li>
+            <li class="b-amethyst"><strong>Mei</strong> at the Art Gallery</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 6 — THE CITY / STATIONS ===== -->
+  <section class="slide" data-slide="6" aria-label="The city stations"
+    data-notes="<strong>Orientation (1 min).</strong> The Teleport Bot can take you anywhere. Five places have A.I. to discover. <span class='tag tt'>Building Ratio</span> 'Turn and tell your partner which station you want to visit first.'">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">The City · 5 A.I. Stations</span>
+      <div class="two-col">
+        <div class="reveal d2">
+          <h2 class="slide-title">Tap a button. <span class="hl2">Teleport</span> there.</h2>
+          <ul class="bullet-list" style="margin-top:var(--gap-sm);">
+            <li class="b-red">Hospital</li>
+            <li>Gardens</li>
+            <li class="b-lapis">Transport Hub</li>
+            <li class="b-amethyst">Art Gallery</li>
+            <li class="b-gold">AI Job Fair</li>
+          </ul>
+        </div>
+        <img class="slide-img reveal d3" src="assets/03-teleport-menu.png" alt="Teleport Bot menu with destination buttons">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 7 — HOW TO PLAY: TELEPORT ===== -->
+  <section class="slide" data-slide="7" aria-label="How to play: teleport"
+    data-notes="<strong>I Do — step 1 (1 min).</strong> Model on the projector: walk to a Teleport Bot, open it, press a destination button.">
+    <div class="slide-inner">
+      <span class="ped-badge i-do reveal d1">I Do · Step 1</span>
+      <div class="two-col">
+        <img class="slide-img reveal d2" src="assets/02-teleport-to-fair.png" alt="Teleport Bot ready to send you to the AI Job Fair">
+        <div class="reveal d3">
+          <h2 class="slide-title">Use the <span class="hl">Teleport Bot</span>.</h2>
+          <p class="body-text" style="margin-top:var(--gap-sm);">Walk up to a Teleport Bot, click it, and press the button for where you want to go. You can also grab a car!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 8 — HOW TO PLAY: AT EACH STATION ===== -->
+  <section class="slide" data-slide="8" aria-label="How to play: at each station"
+    data-notes="<strong>I Do — step 2 (1.5 min).</strong> Model the Hospital: talk to Raj, read the board, find the Hospital Bot ('I make sure people get the right medication!'). Three things at EVERY station.">
+    <div class="slide-inner">
+      <span class="ped-badge i-do reveal d1">I Do · Step 2</span>
+      <div class="two-col">
+        <div class="reveal d2">
+          <h2 class="slide-title">At every station, do <span class="hl">3 things</span>:</h2>
+          <div class="steps" style="margin-top:var(--gap-sm);">
+            <div class="step"><span class="num">1</span><span><strong>Talk</strong> to the person (like Raj).</span></div>
+            <div class="step"><span class="num">2</span><span><strong>Read</strong> the board on the wall.</span></div>
+            <div class="step"><span class="num">3</span><span><strong>Find</strong> the Bot and see its job.</span></div>
+          </div>
+        </div>
+        <img class="slide-img reveal d3" src="assets/09-hospital-bot-scene.png" alt="The Hospital Bot standing in the hospital">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 9 — I DO: SNAP & NAME ===== -->
+  <section class="slide" data-slide="9" aria-label="Snap and name"
+    data-notes="<strong>I Do — step 3 (1.5 min).</strong> Take a photo with the camera, open the Portfolio book, and NAME the photo by what the A.I. does. <span class='tag cfu'>CFU</span> Cold call: 'What should I call this photo so anyone knows what it shows?' Model: 'Medication Dispensing Bot'.">
+    <div class="slide-inner">
+      <span class="ped-badge i-do reveal d1">I Do · Step 3</span>
+      <div class="two-col">
+        <img class="slide-img reveal d2" src="assets/18-portfolio-empty.png" alt="The Portfolio book where photos are saved">
+        <div class="reveal d3">
+          <h2 class="slide-title"><span class="hl2">Snap</span> it. Then <span class="hl">name</span> it.</h2>
+          <p class="body-text" style="margin-top:var(--gap-sm);">Use the camera, then open your Portfolio. Give each photo a clear name that says what the A.I. does.</p>
+          <p class="task-big" style="margin-top:var(--gap);">"<span class="chip">Medication Dispensing Bot</span>" ✔</p>
+          <div class="callout" data-teacher-only="true" style="margin-top:var(--gap-sm);"><span class="tch">🎓</span><span><strong>CFU:</strong> "What should I call this photo so anyone knows what it shows?" Take one answer, then model naming it.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 10 — WE DO: GARDENS ===== -->
+  <section class="slide" data-slide="10" aria-label="We do: gardens"
+    data-notes="<strong>We Do (3 min).</strong> Whole class teleports to the Gardens. Talk to Sofia, read the board, find the Garden Bot. <span class='tag tt'>Turn &amp; Talk</span> 'What ONE job does the Garden Bot do? Tell your partner.' 30 sec, cold-call one pair, then click to reveal the photo name.">
+    <div class="slide-inner">
+      <span class="ped-badge we-do reveal d1">We Do · Together</span>
+      <div class="two-col">
+        <img class="slide-img reveal d2" src="assets/15-garden-bot-scene.png" alt="The Garden Bot in the greenhouse">
+        <div class="reveal d3">
+          <h2 class="slide-title">Let's visit the <span class="hl">Gardens</span>.</h2>
+          <p class="body-text" style="margin-top:var(--gap-sm);">Talk to Sofia. Read the board. Find the Garden Bot. What ONE job does it do?</p>
+          <div class="callout" data-teacher-only="true" style="margin-top:var(--gap-sm);"><span class="tch">🎓</span><span><strong>Turn &amp; Talk:</strong> "What ONE job does the Garden Bot do?" 30 sec, cold-call a pair, then click NEXT to reveal.</span></div>
+          <p class="task-big" data-fragment="1" style="margin-top:var(--gap-sm);">📷 "<span class="chip">Plant Watering Bot</span>"</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 11 — THE QUILL (Y5+6) ===== -->
+  <section class="slide" aria-label="Write with the quill"
+    data-notes="<strong>Set up the writing (1 min).</strong> Y5+6 also write. Find the Book &amp; Quill in the hotbar. After visiting 3+ stations, write a 1–2 paragraph reflection. <span class='tag cfu'>CFU</span> 'What makes a good reflection — listing Bots, or explaining how they help?' (explaining).">
+    <div class="slide-inner">
+      <span class="ped-badge i-do reveal d1">Year 5 + 6 · Also Write</span>
+      <div class="two-col">
+        <img class="slide-img reveal d2" src="assets/19-quill-book-pages.png" alt="The Book and Quill open, ready to write">
+        <div class="reveal d3">
+          <h2 class="slide-title">Grab the <span class="hl">Quill</span> and write.</h2>
+          <p class="body-text" style="margin-top:var(--gap-sm);">Find the Book &amp; Quill in your hotbar. Write 1 to 2 paragraphs:</p>
+          <p class="task-big" style="margin-top:var(--gap);">"How is the world around us using A.I. to <span class="chip">help people do their jobs better</span>?"</p>
+          <p class="body-text" style="margin-top:var(--gap-sm);">Use examples from at least 3 stations. Then Sign and Export.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 12 — YOU DO: YOUR TASK ===== -->
+  <section class="slide" aria-label="Your task"
+    data-notes="<strong>You Do (12 min).</strong> Photograph and name ALL 5 stations, then write the quill reflection (3+ station examples). Read the board AND talk to the person before snapping. <span class='tag tt'>Building Ratio</span> Pair-check at ~8 min: 'Read your partner one sentence — does it EXPLAIN how A.I. helps, not just name a Bot?'">
+    <div class="slide-inner" style="text-align:center; align-items:center;">
+      <span class="ped-badge you-do reveal d1">You Do · Your Quest</span>
+      <h2 class="slide-title reveal d2" style="margin-top:var(--gap-sm);">Explore, <span class="hl2">capture</span> &amp; write!</h2>
+      <p class="task-big reveal d3" style="margin-top:var(--gap);">Name <span class="chip">all 5 stations</span><br>+ write your <span class="chip">quill reflection</span></p>
+      <p class="body-text reveal d4" style="margin-top:var(--gap);">Talk · read the board · snap · name · then explain it in the quill.</p>
+      <div class="callout reveal d5" data-teacher-only="true" style="margin-top:var(--gap); text-align:left; max-width:780px;"><span class="tch">🎓</span><span><strong>Set the timer (12 min).</strong> Circulate (Show Call). Photos: descriptive names. Quill: own words, real examples. Pair-check at 8 min.</span></div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 12 — WHAT TO LOOK FOR ===== -->
+  <section class="slide" data-slide="12" aria-label="What to look for"
+    data-notes="<strong>Reference (keep up during You Do).</strong> The five stations students can visit. Transport Hub and Art Gallery are theirs to discover — encourage curiosity.">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">What to Look For · The 5 Stations</span>
+      <div class="station-grid reveal d2" style="margin-top:var(--gap-sm);">
+        <div class="station-card"><img src="assets/09-hospital-bot-scene.png" alt="Hospital"><span class="sc-label">Hospital</span></div>
+        <div class="station-card"><img src="assets/15-garden-bot-scene.png" alt="Gardens"><span class="sc-label">Gardens</span></div>
+        <div class="station-card"><img src="assets/22-transport-hub-bot.png" alt="Transport Hub"><span class="sc-label">Transport Hub</span></div>
+        <div class="station-card"><img src="assets/23-art-gallery-bot.png" alt="Art Gallery"><span class="sc-label">Art Gallery</span></div>
+        <div class="station-card"><img src="assets/02-teleport-to-fair.png" alt="AI Job Fair"><span class="sc-label">AI Job Fair</span></div>
+      </div>
+      <p class="body-text reveal d3" style="text-align:center; margin-top:var(--gap-sm);">Each one has a person, a board, and a Bot with a job.</p>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 13 — HELP & CHALLENGE ===== -->
+  <section class="slide" data-slide="13" aria-label="Help and challenge"
+    data-notes="<strong>Differentiation.</strong> Support and Extension. These are mainly for the teacher to action; reveal to students if useful.">
+    <div class="slide-inner">
+      <span class="eyebrow reveal d1">Need Help? Want a Challenge?</span>
+      <div class="two-col" style="grid-template-columns:1fr 1fr; align-items:stretch;">
+        <div class="mc-panel reveal d2">
+          <h2 class="slide-title" style="font-size:var(--h3-size); color:var(--emerald);">🟢 Support</h2>
+          <ul class="bullet-list" style="margin-top:var(--gap-sm);">
+            <li>Work with a buddy to teleport.</li>
+            <li class="b-gold">Shorten the quill to 3–4 sentences on 2 stations.</li>
+            <li class="b-lapis">Sentence frame: "At the ___, A.I. helps by ___ which means ___".</li>
+          </ul>
+        </div>
+        <div class="mc-panel reveal d3">
+          <h2 class="slide-title" style="font-size:var(--h3-size); color:var(--redstone);">🔴 Challenge</h2>
+          <ul class="bullet-list" style="margin-top:var(--gap-sm);">
+            <li class="b-red">In the quill, <span class="verb">compare</span> two stations and <span class="verb">justify</span> which job A.I. helps most.</li>
+            <li class="b-amethyst"><span class="verb">Examine</span> a board: find an A.I. use that is NOT a Bot (e.g. Predictive Analytics).</li>
+            <li class="b-gold"><span class="verb">Predict</span> one more city job A.I. could help, and how.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 14 — SHARE + EXIT TICKET ===== -->
+  <section class="slide" data-slide="14" aria-label="Share and exit ticket"
+    data-notes="<strong>Share + Exit Ticket (5–7 min).</strong> Partners compare portfolios (1 station that surprised them). 3–4 volunteers show a photo and say what that A.I. does. Then click to reveal the Exit Ticket. <span class='tag cfu'>CFU</span> Every student answers.">
+    <div class="slide-inner" style="text-align:center; align-items:center;">
+      <span class="eyebrow reveal d1">Share + Exit Ticket</span>
+      <h2 class="slide-title reveal d2" style="margin-top:var(--gap-sm);">Show what you <span class="hl">discovered</span>.</h2>
+      <ul class="bullet-list reveal d3" style="margin-top:var(--gap-sm); text-align:left; max-width:680px;">
+        <li>Show a partner ONE station where A.I. surprised you.</li>
+        <li class="b-gold">Volunteers: show a photo and <span class="verb">explain</span> what that A.I. does and why it helps.</li>
+      </ul>
+      <div class="mc-panel" data-fragment="1" style="margin-top:var(--gap); background:var(--gold);">
+        <p class="task-big" style="font-size:clamp(.95rem,2.2vw,1.5rem);">🎟 Exit Ticket: read <span class="chip">one sentence</span> from your quill reflection aloud.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SLIDE 15 — CLOSING ===== -->
+  <section class="slide" data-slide="15" aria-label="Closing"
+    data-notes="<strong>Close (30 sec).</strong> Recap the WALT in plain words: A.I. is all over the city, helping people do their jobs. Celebrate the explorers.">
+    <div class="slide-inner" style="text-align:center; align-items:center;">
+      <div class="t-blocks reveal d1" style="justify-content:center;">
+        <div class="blk" style="background:var(--grass)"></div>
+        <div class="blk" style="background:var(--diamond)"></div>
+        <div class="blk" style="background:var(--gold)"></div>
+        <div class="blk" style="background:var(--redstone)"></div>
+      </div>
+      <h2 class="t-title reveal d2" style="color:var(--ink); text-shadow:4px 4px 0 var(--paper-edge); margin-top:var(--gap);">WELL<br>EXPLORED!</h2>
+      <p class="body-text reveal d3" style="font-size:var(--h3-size); color:var(--ink); margin-top:var(--gap);">You found A.I. helping all across the city — in hospitals, gardens, transport and art.</p>
+      <span class="pill reveal d4" style="margin-top:var(--gap);">The A.I. Job Fair · Year 5 + 6</span>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   SLIDE PRESENTATION CONTROLLER (proven house controller)
+   ============================================================ */
+class SlidePresentation {
+  constructor() {
+    this.slides = Array.from(document.querySelectorAll('.slide'));
+    this.total = this.slides.length;
+    this.current = 0;
+    this.isAnimating = false;
+    this.ANIM_DURATION = 500;
+    this.progressFill = document.getElementById('progressFill');
+    this.slideCounter = document.getElementById('slideCounter');
+    this.navDotsEl = document.getElementById('navDots');
+    this.buildNavDots();
+    this.setupKeyboard();
+    this.setupWheel();
+    this.setupTouch();
+    this.updateUI();
+  }
+  goTo(index) {
+    if (index < 0 || index >= this.total || this.isAnimating || index === this.current) return;
+    this.isAnimating = true;
+    this.slides[this.current].querySelectorAll('[data-fragment]').forEach(f => f.classList.remove('fragment-visible'));
+    this.slides[this.current].classList.remove('active');
+    this.slides[this.current].classList.add('exit-left');
+    const exiting = this.slides[this.current];
+    setTimeout(() => exiting.classList.remove('exit-left'), this.ANIM_DURATION);
+    this.current = index;
+    this.slides[this.current].querySelectorAll('[data-fragment]').forEach(f => f.classList.remove('fragment-visible'));
+    this.slides[this.current].classList.add('active');
+    setTimeout(() => { this.isAnimating = false; }, this.ANIM_DURATION);
+    this.updateUI();
+  }
+  getFragments() {
+    return Array.from(this.slides[this.current].querySelectorAll('[data-fragment]'))
+      .sort((a, b) => parseInt(a.dataset.fragment, 10) - parseInt(b.dataset.fragment, 10));
+  }
+  next() {
+    for (const f of this.getFragments()) {
+      if (!f.classList.contains('fragment-visible')) { f.classList.add('fragment-visible'); return; }
+    }
+    this.goTo(this.current + 1);
+  }
+  prev() {
+    const frags = this.getFragments();
+    for (let i = frags.length - 1; i >= 0; i--) {
+      if (frags[i].classList.contains('fragment-visible')) { frags[i].classList.remove('fragment-visible'); return; }
+    }
+    this.goTo(this.current - 1);
+  }
+  setupKeyboard() {
+    const NEXT = ['ArrowRight', 'ArrowDown', 'Space', 'PageDown'];
+    const PREV = ['ArrowLeft', 'ArrowUp', 'PageUp'];
+    this.TAP_DEBOUNCE_MS = 200; this.tapCount = 0; this.tapTimer = null;
+    const flushTaps = () => {
+      const count = this.tapCount; this.tapCount = 0; this.tapTimer = null;
+      if (count >= 3) { if (typeof this.onTripleTap === 'function') this.onTripleTap(); }
+      else { for (let i = 0; i < count; i++) this.next(); }
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.target.isContentEditable || ['INPUT','TEXTAREA','IFRAME'].includes(e.target.tagName)) return;
+      if (NEXT.includes(e.code)) {
+        e.preventDefault(); if (e.repeat) return;
+        this.tapCount += 1; if (this.tapTimer) clearTimeout(this.tapTimer);
+        this.tapTimer = setTimeout(flushTaps, this.TAP_DEBOUNCE_MS); return;
+      }
+      if (PREV.includes(e.code)) { e.preventDefault(); this.prev(); }
+    });
+  }
+  setupWheel() {
+    let wheelLock = false;
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault(); if (wheelLock) return; wheelLock = true;
+      if (e.deltaY > 0) this.next(); else this.prev();
+      setTimeout(() => { wheelLock = false; }, this.ANIM_DURATION + 100);
+    }, { passive: false });
+  }
+  setupTouch() {
+    let sx = 0, sy = 0;
+    document.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      const dX = sx - e.changedTouches[0].clientX, dY = sy - e.changedTouches[0].clientY, T = 50;
+      if (Math.abs(dX) > Math.abs(dY)) { if (dX > T) this.next(); if (dX < -T) this.prev(); }
+      else { if (dY > T) this.next(); if (dY < -T) this.prev(); }
+    }, { passive: true });
+  }
+  buildNavDots() {
+    this.navDotsEl.innerHTML = '';
+    this.slides.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.setAttribute('aria-label', `Go to slide ${i + 1}`);
+      b.addEventListener('click', () => this.goTo(i));
+      this.navDotsEl.appendChild(b);
+    });
+  }
+  updateUI() {
+    this.progressFill.style.width = ((this.current + 1) / this.total) * 100 + '%';
+    this.slideCounter.textContent = `${this.current + 1} / ${this.total}`;
+    this.navDotsEl.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current));
+    document.title = `Slide ${this.current + 1} of ${this.total} — The A.I. Job Fair (Year 5+6)`;
+  }
+}
+
+/* ============================================================
+   FONT SCALE CONTROLLER
+   ============================================================ */
+class FontScaleController {
+  constructor() {
+    this.STEP = 0.1; this.MIN = 0.5; this.MAX = 2.0;
+    this.scale = parseFloat(localStorage.getItem('jobfair56_fontScale') || '1');
+    this.labelEl = document.getElementById('fontScaleLabel');
+    this.btnUp = document.getElementById('fontScaleUp');
+    this.btnDown = document.getElementById('fontScaleDown');
+    this.btnUp.addEventListener('click', () => this.increase());
+    this.btnDown.addEventListener('click', () => this.decrease());
+    document.addEventListener('keydown', (e) => {
+      if (!e.metaKey) return;
+      if (e.key === '.') { e.preventDefault(); this.increase(); }
+      if (e.key === ',') { e.preventDefault(); this.decrease(); }
+    });
+    this.apply();
+  }
+  increase() { this.setScale(this.scale + this.STEP); }
+  decrease() { this.setScale(this.scale - this.STEP); }
+  setScale(v) { this.scale = Math.round(Math.max(this.MIN, Math.min(this.MAX, v)) * 10) / 10; this.apply(); localStorage.setItem('jobfair56_fontScale', this.scale); }
+  apply() {
+    document.documentElement.style.setProperty('--font-scale', this.scale);
+    this.labelEl.textContent = Math.round(this.scale * 100) + '%';
+    this.btnDown.disabled = this.scale <= this.MIN;
+    this.btnUp.disabled = this.scale >= this.MAX;
+    document.body.classList.toggle('scaled-up', this.scale > 1.2);
+  }
+}
+
+/* ============================================================
+   FULLSCREEN CONTROLLER
+   ============================================================ */
+class FullscreenController {
+  constructor() {
+    this.btn = document.getElementById('fullscreenBtn');
+    this.btn.addEventListener('click', () => this.toggle());
+    document.addEventListener('keydown', (e) => {
+      if (e.metaKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); this.toggle(); return; }
+      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const t = e.target;
+        if (!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable))) { e.preventDefault(); this.toggle(); }
+      }
+    });
+    document.addEventListener('fullscreenchange', () => this.syncLabel());
+  }
+  toggle() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+  syncLabel() { const fs = !!document.fullscreenElement; this.btn.setAttribute('aria-label', fs ? 'Exit fullscreen' : 'Enter fullscreen'); this.btn.title = fs ? 'Exit fullscreen (⌘ F / Esc)' : 'Fullscreen (⌘ F)'; }
+}
+
+/* ============================================================
+   CURSOR EFFECTS — grass-green trail + click-drag ink
+   ============================================================ */
+class CursorEffects {
+  constructor() {
+    this.canDo = matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!this.canDo) return;
+    this.canvas = document.getElementById('cursorFx'); this.ctx = this.canvas.getContext('2d');
+    this.accent = (a) => `rgba(95, 174, 58, ${a})`;   /* grass green */
+    this.trail = []; this.strokes = []; this.current = null; this.TRAIL_LIFE = 400; this.INK_FADE = 1500;
+    this.resize(); window.addEventListener('resize', () => this.resize()); this.bindEvents(); requestAnimationFrame(() => this.tick());
+  }
+  resize() { const dpr = window.devicePixelRatio || 1; this.canvas.width = innerWidth * dpr; this.canvas.height = innerHeight * dpr; this.canvas.style.width = innerWidth + 'px'; this.canvas.style.height = innerHeight + 'px'; this.ctx.setTransform(1, 0, 0, 1, 0, 0); this.ctx.scale(dpr, dpr); }
+  bindEvents() {
+    window.addEventListener('mousemove', (e) => { this.trail.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (this.current) this.current.points.push({ x: e.clientX, y: e.clientY }); });
+    window.addEventListener('mousedown', (e) => { if (e.button !== 0) return; if (e.target.closest('button, a, [contenteditable], input, textarea, .nav-dots')) return; this.current = { points: [{ x: e.clientX, y: e.clientY }], done: false }; this.strokes.push(this.current); });
+    const end = () => { if (this.current) { this.current.done = true; this.current.finishedAt = performance.now(); this.current = null; } };
+    window.addEventListener('mouseup', end); window.addEventListener('mouseleave', end);
+  }
+  tick() {
+    const now = performance.now(), ctx = this.ctx; ctx.clearRect(0, 0, innerWidth, innerHeight);
+    this.trail = this.trail.filter(p => now - p.t < this.TRAIL_LIFE);
+    for (const p of this.trail) { const age = (now - p.t) / this.TRAIL_LIFE, a = 1 - age, r = 7 * (1 - age * 0.35); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = this.accent(a * 0.55); ctx.shadowBlur = 12; ctx.shadowColor = this.accent(0.9); ctx.fill(); }
+    ctx.shadowBlur = 0;
+    for (let i = this.strokes.length - 1; i >= 0; i--) {
+      const s = this.strokes[i]; let a = 1;
+      if (s.done) { const age = now - s.finishedAt; if (age >= this.INK_FADE) { this.strokes.splice(i, 1); continue; } a = 1 - age / this.INK_FADE; }
+      if (s.points.length < 2) continue;
+      ctx.beginPath(); ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (let j = 1; j < s.points.length; j++) ctx.lineTo(s.points[j].x, s.points[j].y);
+      ctx.strokeStyle = this.accent(a); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 14; ctx.shadowColor = this.accent(a); ctx.stroke();
+    }
+    ctx.shadowBlur = 0; requestAnimationFrame(() => this.tick());
+  }
+}
+
+/* ============================================================
+   SPEAKER NOTES PANEL
+   ============================================================ */
+class SpeakerNotesPanel {
+  constructor(presentation) {
+    this.presentation = presentation; this.visible = false;
+    this.panel = document.getElementById('speakerNotes'); this.hint = document.getElementById('notesHint');
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'n' || e.key === 'N') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.target.isContentEditable || ['INPUT','TEXTAREA','IFRAME'].includes(e.target.tagName)) return;
+        e.preventDefault(); this.toggle();
+      }
+    });
+    const orig = presentation.updateUI.bind(presentation);
+    presentation.updateUI = () => { orig(); this.updateContent(); };
+    this.updateContent();
+  }
+  toggle() { this.visible = !this.visible; this.panel.classList.toggle('visible', this.visible); this.hint.style.display = this.visible ? 'none' : ''; this.updateContent(); }
+  updateContent() {
+    const slide = this.presentation.slides[this.presentation.current];
+    this.panel.querySelector('.notes-body').innerHTML = slide.dataset.notes || '(no notes for this slide)';
+    this.panel.querySelector('.notes-counter').textContent = `Slide ${this.presentation.current + 1} / ${this.presentation.total}`;
+  }
+}
+
+/* ============================================================
+   TEACHER TOGGLE — hide/show presenter-only callouts
+   ============================================================ */
+class TeacherToggle {
+  constructor() {
+    this.btn = document.getElementById('teacherBtn');
+    this.hidden = localStorage.getItem('jobfair56_hideTeacher') === '1';
+    this.btn.addEventListener('click', () => this.toggle());
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'h' || e.key === 'H')) { e.preventDefault(); this.toggle(); }
+    });
+    this.apply();
+  }
+  toggle() { this.hidden = !this.hidden; this.apply(); localStorage.setItem('jobfair56_hideTeacher', this.hidden ? '1' : '0'); }
+  apply() {
+    document.body.classList.toggle('hide-teacher', this.hidden);
+    this.btn.classList.toggle('off', this.hidden);
+    this.btn.setAttribute('aria-label', this.hidden ? 'Show teacher prompts' : 'Hide teacher prompts');
+  }
+}
+
+/* ============================================================
+   INLINE EDITOR — edit text in-browser, save a clean copy
+   ============================================================ */
+class InlineEditor {
+  constructor() {
+    this.isActive = false;
+    this.SEL = 'h1, h2, h3, p, li, span.eyebrow, .slide-title, .t-title, .body-text, .task-big, .sc-label, .pill, .star-row span, .step span, .callout span';
+    this.STORAGE = 'jobfair_y56_edits';
+    this.toggleBtn = document.getElementById('editToggle');
+    this.banner = document.getElementById('editBanner');
+    this.els = Array.from(document.querySelectorAll(this.SEL)).filter(el => !el.closest('.speaker-notes-panel, .font-scale-ctrl, .edit-banner'));
+    this.els.forEach((el, i) => el.dataset.eid = i);
+    this.restore();
+    this.bind();
+  }
+  bind() {
+    this.toggleBtn.addEventListener('click', () => this.toggleEditMode());
+    const hotzone = document.querySelector('.edit-hotzone'); let hideTimeout = null;
+    const show = () => { clearTimeout(hideTimeout); this.toggleBtn.classList.add('show'); };
+    const hide = () => { hideTimeout = setTimeout(() => { if (!this.isActive) this.toggleBtn.classList.remove('show'); }, 400); };
+    hotzone.addEventListener('mouseenter', show); hotzone.addEventListener('mouseleave', hide);
+    this.toggleBtn.addEventListener('mouseenter', () => clearTimeout(hideTimeout)); this.toggleBtn.addEventListener('mouseleave', hide);
+    hotzone.addEventListener('click', () => this.toggleEditMode());
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+        this.toggleEditMode();
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); this.exportFile(); }
+    });
+  }
+  toggleEditMode() { this.isActive ? this.disable() : this.enable(); }
+  enable() {
+    this.isActive = true; document.body.classList.add('edit-active');
+    this.toggleBtn.classList.add('active', 'show'); this.toggleBtn.textContent = '✓'; this.banner.classList.add('active');
+    this.els.forEach(el => { el.setAttribute('contenteditable', 'true'); el.addEventListener('input', this._save = () => this.save()); });
+  }
+  disable() {
+    this.isActive = false; document.body.classList.remove('edit-active');
+    this.toggleBtn.classList.remove('active'); this.toggleBtn.classList.remove('show'); this.toggleBtn.textContent = '✏️'; this.banner.classList.remove('active');
+    this.els.forEach(el => el.removeAttribute('contenteditable'));
+    this.save();
+  }
+  save() {
+    const data = {}; this.els.forEach(el => { data[el.dataset.eid] = el.innerHTML; });
+    localStorage.setItem(this.STORAGE, JSON.stringify(data));
+  }
+  restore() {
+    const raw = localStorage.getItem(this.STORAGE); if (!raw) return;
+    try { const data = JSON.parse(raw); this.els.forEach(el => { if (data[el.dataset.eid] !== undefined) el.innerHTML = data[el.dataset.eid]; }); } catch (e) {}
+  }
+  exportFile() {
+    const editable = Array.from(document.querySelectorAll('[contenteditable]'));
+    editable.forEach(el => el.removeAttribute('contenteditable'));
+    document.body.classList.remove('edit-active');
+    this.toggleBtn.classList.remove('active', 'show'); this.banner.classList.remove('active');
+    document.querySelectorAll('.slide').forEach(s => { s.classList.remove('exit-left'); });
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    if (this.isActive) { document.body.classList.add('edit-active'); editable.forEach(el => el.setAttribute('contenteditable', 'true')); this.toggleBtn.classList.add('active', 'show'); this.banner.classList.add('active'); }
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'AI Job Fair - Grade 5+6.html'; a.click(); URL.revokeObjectURL(a.href);
+  }
+}
+
+/* ---- Boot ---- */
+const fontScaleCtrl = new FontScaleController();
+const fullscreenCtrl = new FullscreenController();
+const cursorFx = new CursorEffects();
+const teacherToggle = new TeacherToggle();
+const presentation = new SlidePresentation();
+const speakerNotes = new SpeakerNotesPanel(presentation);
+presentation.onTripleTap = () => speakerNotes.toggle();
+const inlineEditor = new InlineEditor();
+</script>
+</body>
+</html>
