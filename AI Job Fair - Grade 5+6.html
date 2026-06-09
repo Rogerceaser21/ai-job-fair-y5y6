@@ -247,6 +247,12 @@ body.hide-teacher [data-teacher-only="true"]{ display:none !important; }
 .font-scale-ctrl .ctrl-divider{ width:2px; height:1.1em; background:var(--paper-edge); margin:0 4px; }
 .font-scale-ctrl .fs-btn{ font-size:clamp(.7rem,1vw,.85rem); padding:.18em .4em; }
 .teacher-btn.off{ opacity:.4; text-decoration:line-through; }
+.hide-slide-btn.on{ background:var(--redstone); }
+.nav-dots button.is-hidden{ opacity:.45; background:repeating-linear-gradient(45deg, transparent, transparent 2px, var(--ink) 2px, var(--ink) 3px); }
+#hiddenBadge{ position:fixed; top:clamp(2.2rem,5.5vh,3.2rem); left:50%; transform:translateX(-50%); z-index:9500; display:none;
+  background:var(--redstone); color:#fff; font-family:var(--font-display); font-size:clamp(.5rem,.85vw,.66rem); letter-spacing:.08em;
+  padding:.55em 1em; box-shadow:var(--bevel); }
+#hiddenBadge.show{ display:block; }
 
 /* cursor fx */
 #cursorFx{ position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:9999; }
@@ -311,6 +317,7 @@ body.scaled-up .two-col .slide-img, body.scaled-up .station-grid{ }
   <div class="notes-body" id="notesBody">(no notes for this slide)</div>
 </aside>
 <div class="notes-hint" id="notesHint">Press N or triple-tap → for speaker notes</div>
+<div id="hiddenBadge">🙈 Slide hidden — skipped when presenting</div>
 
 <!-- cursor fx -->
 <canvas id="cursorFx" aria-hidden="true"></canvas>
@@ -329,6 +336,8 @@ body.scaled-up .two-col .slide-img, body.scaled-up .station-grid{ }
   <button id="fullscreenBtn" class="fs-btn" aria-label="Enter fullscreen" title="Fullscreen (⌘ F)">⛶</button>
   <span class="ctrl-divider" aria-hidden="true"></span>
   <button id="teacherBtn" class="fs-btn teacher-btn" aria-label="Toggle teacher prompts" title="Teacher prompts (⌘⇧H)">🎓</button>
+  <span class="ctrl-divider" aria-hidden="true"></span>
+  <button id="hideSlideBtn" class="fs-btn hide-slide-btn" aria-label="Hide this slide" title="Hide this slide (skipped when presenting, H)">👁</button>
 </div>
 
 <div class="slides-container" id="slidesContainer">
@@ -626,6 +635,8 @@ class SlidePresentation {
     this.setupKeyboard();
     this.setupWheel();
     this.setupTouch();
+    this.current = this.firstVisible();
+    this.slides.forEach((s, i) => s.classList.toggle('active', i === this.current));
     this.updateUI();
   }
   goTo(index) {
@@ -646,18 +657,29 @@ class SlidePresentation {
     return Array.from(this.slides[this.current].querySelectorAll('[data-fragment]'))
       .sort((a, b) => parseInt(a.dataset.fragment, 10) - parseInt(b.dataset.fragment, 10));
   }
+  isHidden(i) { return this.slides[i].hasAttribute('data-hidden'); }
+  firstVisible() { for (let i = 0; i < this.total; i++) if (!this.isHidden(i)) return i; return 0; }
+  nextVisible(from, dir) { for (let i = from + dir; i >= 0 && i < this.total; i += dir) if (!this.isHidden(i)) return i; return null; }
+  visibleList() { const a = []; for (let i = 0; i < this.total; i++) if (!this.isHidden(i)) a.push(i); return a; }
+  toggleHideCurrent() {
+    const s = this.slides[this.current];
+    if (s.hasAttribute('data-hidden')) s.removeAttribute('data-hidden'); else s.setAttribute('data-hidden', 'true');
+    this.updateUI();
+  }
   next() {
     for (const f of this.getFragments()) {
       if (!f.classList.contains('fragment-visible')) { f.classList.add('fragment-visible'); return; }
     }
-    this.goTo(this.current + 1);
+    const nx = this.nextVisible(this.current, 1);
+    if (nx !== null) this.goTo(nx);
   }
   prev() {
     const frags = this.getFragments();
     for (let i = frags.length - 1; i >= 0; i--) {
       if (frags[i].classList.contains('fragment-visible')) { frags[i].classList.remove('fragment-visible'); return; }
     }
-    this.goTo(this.current - 1);
+    const pv = this.nextVisible(this.current, -1);
+    if (pv !== null) this.goTo(pv);
   }
   setupKeyboard() {
     const NEXT = ['ArrowRight', 'ArrowDown', 'Space', 'PageDown'];
@@ -706,8 +728,14 @@ class SlidePresentation {
   }
   updateUI() {
     this.progressFill.style.width = ((this.current + 1) / this.total) * 100 + '%';
-    this.slideCounter.textContent = `${this.current + 1} / ${this.total}`;
+    const _vis = this.visibleList();
+    this.slideCounter.textContent = this.isHidden(this.current) ? `(hidden) / ${_vis.length}` : `${_vis.indexOf(this.current) + 1} / ${_vis.length}`;
     this.navDotsEl.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current));
+    this.navDotsEl.querySelectorAll('button').forEach((b, i) => b.classList.toggle('is-hidden', this.isHidden(i)));
+    const _cur = this.isHidden(this.current);
+    const _hb = document.getElementById('hiddenBadge'); if (_hb) _hb.classList.toggle('show', _cur);
+    const _eb = document.getElementById('hideSlideBtn');
+    if (_eb) { _eb.classList.toggle('on', _cur); _eb.textContent = _cur ? '🙈' : '👁'; _eb.title = _cur ? 'Slide hidden — click to show (H)' : 'Hide this slide (skipped when presenting, H)'; }
     document.title = `Slide ${this.current + 1} of ${this.total} — The A.I. Job Fair (Year 5+6)`;
   }
 }
@@ -820,7 +848,9 @@ class SpeakerNotesPanel {
   updateContent() {
     const slide = this.presentation.slides[this.presentation.current];
     this.panel.querySelector('.notes-body').innerHTML = slide.dataset.notes || '(no notes for this slide)';
-    this.panel.querySelector('.notes-counter').textContent = `Slide ${this.presentation.current + 1} / ${this.presentation.total}`;
+    const _v = this.presentation.visibleList ? this.presentation.visibleList() : null;
+    if (_v) { this.panel.querySelector('.notes-counter').textContent = this.presentation.isHidden(this.presentation.current) ? `Slide (hidden) / ${_v.length}` : `Slide ${_v.indexOf(this.presentation.current) + 1} / ${_v.length}`; }
+    else { this.panel.querySelector('.notes-counter').textContent = `Slide ${this.presentation.current + 1} / ${this.presentation.total}`; }
   }
 }
 
@@ -901,8 +931,12 @@ class InlineEditor {
     editable.forEach(el => el.removeAttribute('contenteditable'));
     document.body.classList.remove('edit-active');
     this.toggleBtn.classList.remove('active', 'show'); this.banner.classList.remove('active');
-    document.querySelectorAll('.slide').forEach(s => { s.classList.remove('exit-left'); });
+    const _liveActive = document.querySelector('.slide.active');
+    const _allSlides = Array.from(document.querySelectorAll('.slide'));
+    let _fv = _allSlides.findIndex(s => !s.hasAttribute('data-hidden')); if (_fv < 0) _fv = 0;
+    _allSlides.forEach((s, i) => { s.classList.remove('exit-left'); s.querySelectorAll('[data-fragment]').forEach(f => f.classList.remove('fragment-visible')); s.classList.toggle('active', i === _fv); });
     const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    _allSlides.forEach(s => s.classList.remove('active')); if (_liveActive) _liveActive.classList.add('active');
     if (this.isActive) { document.body.classList.add('edit-active'); editable.forEach(el => el.setAttribute('contenteditable', 'true')); this.toggleBtn.classList.add('active', 'show'); this.banner.classList.add('active'); }
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'AI Job Fair - Grade 5+6.html'; a.click(); URL.revokeObjectURL(a.href);
@@ -918,6 +952,14 @@ const presentation = new SlidePresentation();
 const speakerNotes = new SpeakerNotesPanel(presentation);
 presentation.onTripleTap = () => speakerNotes.toggle();
 const inlineEditor = new InlineEditor();
+/* Hide-slide control (Option A). State is a data-hidden attribute baked into the file on export (no localStorage). */
+document.getElementById('hideSlideBtn').addEventListener('click', () => presentation.toggleHideCurrent());
+document.addEventListener('keydown', (e) => {
+  if (e.key && e.key.toLowerCase() === 'h' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    if (e.target.isContentEditable || ['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    e.preventDefault(); presentation.toggleHideCurrent();
+  }
+});
 </script>
 </body>
 </html>
