@@ -746,7 +746,7 @@ class SlidePresentation {
 class FontScaleController {
   constructor() {
     this.STEP = 0.1; this.MIN = 0.5; this.MAX = 2.0;
-    this.scale = parseFloat(localStorage.getItem('jobfair56_fontScale') || '1');
+    this.scale = 1; /* session-only — never persisted to localStorage */
     this.labelEl = document.getElementById('fontScaleLabel');
     this.btnUp = document.getElementById('fontScaleUp');
     this.btnDown = document.getElementById('fontScaleDown');
@@ -761,7 +761,7 @@ class FontScaleController {
   }
   increase() { this.setScale(this.scale + this.STEP); }
   decrease() { this.setScale(this.scale - this.STEP); }
-  setScale(v) { this.scale = Math.round(Math.max(this.MIN, Math.min(this.MAX, v)) * 10) / 10; this.apply(); localStorage.setItem('jobfair56_fontScale', this.scale); }
+  setScale(v) { this.scale = Math.round(Math.max(this.MIN, Math.min(this.MAX, v)) * 10) / 10; this.apply(); }
   apply() {
     document.documentElement.style.setProperty('--font-scale', this.scale);
     this.labelEl.textContent = Math.round(this.scale * 100) + '%';
@@ -860,14 +860,14 @@ class SpeakerNotesPanel {
 class TeacherToggle {
   constructor() {
     this.btn = document.getElementById('teacherBtn');
-    this.hidden = localStorage.getItem('jobfair56_hideTeacher') === '1';
+    this.hidden = false; /* session-only — never persisted to localStorage */
     this.btn.addEventListener('click', () => this.toggle());
     document.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'h' || e.key === 'H')) { e.preventDefault(); this.toggle(); }
     });
     this.apply();
   }
-  toggle() { this.hidden = !this.hidden; this.apply(); localStorage.setItem('jobfair56_hideTeacher', this.hidden ? '1' : '0'); }
+  toggle() { this.hidden = !this.hidden; this.apply(); }
   apply() {
     document.body.classList.toggle('hide-teacher', this.hidden);
     this.btn.classList.toggle('off', this.hidden);
@@ -886,8 +886,7 @@ class InlineEditor {
     this.toggleBtn = document.getElementById('editToggle');
     this.banner = document.getElementById('editBanner');
     this.els = Array.from(document.querySelectorAll(this.SEL)).filter(el => !el.closest('.speaker-notes-panel, .font-scale-ctrl, .edit-banner'));
-    this.els.forEach((el, i) => el.dataset.eid = i);
-    this.restore();
+    /* No localStorage. Edits live in the DOM for the current session only and persist ONLY via ⌘S export (baked into the downloaded file). No auto-save, no auto-restore. */
     this.bind();
   }
   bind() {
@@ -916,15 +915,7 @@ class InlineEditor {
     this.isActive = false; document.body.classList.remove('edit-active');
     this.toggleBtn.classList.remove('active'); this.toggleBtn.classList.remove('show'); this.toggleBtn.textContent = '✏️'; this.banner.classList.remove('active');
     this.els.forEach(el => el.removeAttribute('contenteditable'));
-    this.save();
-  }
-  save() {
-    const data = {}; this.els.forEach(el => { data[el.dataset.eid] = el.innerHTML; });
-    localStorage.setItem(this.STORAGE, JSON.stringify(data));
-  }
-  restore() {
-    const raw = localStorage.getItem(this.STORAGE); if (!raw) return;
-    try { const data = JSON.parse(raw); this.els.forEach(el => { if (data[el.dataset.eid] !== undefined) el.innerHTML = data[el.dataset.eid]; }); } catch (e) {}
+    /* Intentionally no save() — nothing is written to localStorage. Use ⌘S to export a baked copy. */
   }
   exportFile() {
     const editable = Array.from(document.querySelectorAll('[contenteditable]'));
@@ -944,6 +935,9 @@ class InlineEditor {
 }
 
 /* ---- Boot ---- */
+/* This deck never SAVES to localStorage. On load we only PURGE any stale keys left by
+   older versions, so a teacher's browser can never show outdated/garbled content again. */
+try { ['jobfair_y56_edits', 'jobfair56_fontScale', 'jobfair56_hideTeacher'].forEach(k => localStorage.removeItem(k)); } catch (e) {}
 const fontScaleCtrl = new FontScaleController();
 const fullscreenCtrl = new FullscreenController();
 const cursorFx = new CursorEffects();
